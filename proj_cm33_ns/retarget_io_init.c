@@ -43,6 +43,9 @@
 * Header Files
 *******************************************************************************/
 #include "retarget_io_init.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "source/cli_task.h"
 
 /*******************************************************************************
 * Global Variables
@@ -138,6 +141,71 @@ void init_retarget_io(void)
     /* UART SysPm callback registration for retarget-io */
     Cy_SysPm_RegisterCallback(&retarget_io_syspm_cb);
 #endif /* (CY_CFG_PWR_SYS_IDLE_MODE == CY_CFG_PWR_MODE_DEEPSLEEP) */
+}
+
+/*******************************************************************************
+* Function Name: uart_rx_isr
+********************************************************************************
+* Summary:
+*  UART RX interrupt handler - puts received characters into CLI RX queue
+*
+* Parameters:
+*  None
+*
+* Return:
+*  None
+*
+*******************************************************************************/
+static void uart_rx_isr(void)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    uint32_t rx_data;
+    
+    /* Check if RX FIFO has data */
+    if (Cy_SCB_UART_GetNumInRxFifo(CYBSP_DEBUG_UART_HW) > 0) {
+        /* Read character from UART */
+        rx_data = Cy_SCB_UART_Get(CYBSP_DEBUG_UART_HW);
+        
+        /* Put character into CLI RX queue (from ISR) */
+        if (cli_rx_queue != NULL) {
+            char ch = (char)rx_data;
+            xQueueSendFromISR(cli_rx_queue, &ch, &xHigherPriorityTaskWoken);
+        }
+    }
+    
+    /* Clear RX interrupt */
+    Cy_SCB_ClearRxInterrupt(CYBSP_DEBUG_UART_HW, CY_SCB_RX_INTR_NOT_EMPTY);
+    
+    /* Yield to higher priority task if needed */
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+/*******************************************************************************
+* Function Name: uart_rx_interrupt_init
+********************************************************************************
+* Summary:
+*  Initialize UART RX interrupt
+*
+* Parameters:
+*  None
+*
+* Return:
+*  None
+*
+*******************************************************************************/
+void uart_rx_interrupt_init(void)
+{
+    cy_stc_sysint_t uart_rx_intr_cfg = {
+        .intrSrc = (IRQn_Type)CYBSP_DEBUG_UART_IRQ,
+        .intrPriority = 7  /* Lower than FreeRTOS configMAX_SYSCALL_INTERRUPT_PRIORITY */
+    };
+    
+    /* Initialize and enable UART RX interrupt */
+    Cy_SysInt_Init(&uart_rx_intr_cfg, uart_rx_isr);
+    NVIC_EnableIRQ(uart_rx_intr_cfg.intrSrc);
+    
+    /* Enable UART RX interrupt in SCB */
+    Cy_SCB_SetRxInterruptMask(CYBSP_DEBUG_UART_HW, CY_SCB_RX_INTR_NOT_EMPTY);
 }
 
 /* [] END OF FILE */

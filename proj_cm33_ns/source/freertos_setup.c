@@ -10,6 +10,7 @@
 // #include "playback_task.h"  /* Temporarily disabled */
 #include "app_pdm_pcm.h"
 #include "app_i2s.h"
+#include "retarget_io_init.h"
 #include <stdio.h>
 
 /*******************************************************************************
@@ -126,6 +127,9 @@ void freertos_system_init(void)
     app_i2s_init();
     app_pdm_pcm_init();
     printf("Audio hardware initialized\r\n");
+    
+    /* Step 2.5: Initialize UART RX interrupt for CLI input */
+    uart_rx_interrupt_init();
     
     /* Step 3: Create all application tasks */
     if (freertos_create_tasks() != 0) {
