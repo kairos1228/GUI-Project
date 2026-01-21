@@ -53,7 +53,7 @@ VERBOSE=
 # ... then code in directories named COMPONENT_foo and COMPONENT_bar will be
 # added to the build
 #
-COMPONENTS+=
+COMPONENTS+=FREERTOS EMFILE
 
 # Like COMPONENTS, but disable optional code that was enabled by default.
 DISABLE_COMPONENTS=
@@ -70,6 +70,12 @@ SOURCES+=
 # Like SOURCES, but for include directories. Value should be paths to
 # directories (without a leading -I).
 INCLUDES+=
+
+# Exclude unwanted FreeRTOS heap implementations (only keep heap_4)
+CY_IGNORE+=../../mtb_shared/freertos/release-v10.6.202/Source/portable/MemMang/heap_1.c
+CY_IGNORE+=../../mtb_shared/freertos/release-v10.6.202/Source/portable/MemMang/heap_2.c
+CY_IGNORE+=../../mtb_shared/freertos/release-v10.6.202/Source/portable/MemMang/heap_3.c
+CY_IGNORE+=../../mtb_shared/freertos/release-v10.6.202/Source/portable/MemMang/heap_5.c
 
 # Add additional defines to the build process (without a leading -D).
 DEFINES+=CY_RETARGET_IO_CONVERT_LF_TO_CRLF
