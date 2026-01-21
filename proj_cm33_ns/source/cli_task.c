@@ -53,7 +53,17 @@ static bool cli_parse_command(const char *cmd_str, audio_command_msg_t *msg)
     }
     
     /* Match command */
-    if (strcmp(cmd, "record") == 0) {
+    if (strcmp(cmd, "help") == 0) {
+        printf("Available commands:\r\n");
+        printf("  help            - Show this help message\r\n");
+        printf("  record          - Start recording\r\n");
+        printf("  stop            - Stop recording\r\n");
+        printf("  ls              - List files\r\n");
+        printf("  play <filename> - Play WAV file\r\n");
+        printf("  rm <filename>   - Delete file\r\n");
+        return false;  /* Don't send to audio task */
+    }
+    else if (strcmp(cmd, "record") == 0) {
         msg->cmd = CMD_START_RECORD;
         return true;
     }
@@ -92,6 +102,7 @@ static bool cli_parse_command(const char *cmd_str, audio_command_msg_t *msg)
     else {
         printf("Unknown command: %s\r\n", cmd);
         printf("Available commands:\r\n");
+        printf("  help            - Show this help message\r\n");
         printf("  record          - Start recording\r\n");
         printf("  stop            - Stop recording\r\n");
         printf("  ls              - List files\r\n");
@@ -123,7 +134,7 @@ void cli_task(void *pvParameters)
     
     printf("\r\n=== Audio Recorder CLI ===\r\n");
     printf("Type 'help' for command list\r\n");
-    printf("> ");
+    printf("Enter Command: ");
     fflush(stdout);
     
     while (1) {
@@ -162,7 +173,7 @@ void cli_task(void *pvParameters)
                     cmd_index = 0;
                 }
                 
-                printf("> ");
+                printf("Enter Command: ");
                 fflush(stdout);
                 continue;
             }
@@ -172,7 +183,7 @@ void cli_task(void *pvParameters)
                 cmd_buffer[cmd_index++] = rx_char;
             }
             else {
-                printf("\r\nError: Command too long\r\n> ");
+                printf("\r\nError: Command too long\r\nEnter Command: ");
                 fflush(stdout);
                 cmd_index = 0;
             }

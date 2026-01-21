@@ -132,6 +132,7 @@ cy_en_pdm_pcm_gain_sel_t convert_db_to_pdm_scale(double db);
 void set_pdm_pcm_gain(cy_en_pdm_pcm_gain_sel_t gain);
 void pdm_interrupt_handler(void);
 uint32_t get_audio_data_index(void);
+int16_t* get_recorded_data_buffer(void);
 
 
 #ifdef __cplusplus

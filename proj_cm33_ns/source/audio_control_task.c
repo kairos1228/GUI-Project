@@ -44,16 +44,15 @@ static void handle_start_record(void)
         return;
     }
     
-    /* Clear audio state events */
-    xEventGroupClearBits(audio_state_events, EVENT_IDLE);
+    /* Clear idle state */
+    xEventGroupClearBits(audio_state_events, EVENT_IDLE | EVENT_RECORDING_DONE);
     
-    /* Activate PDM recording */
+    /* Signal AudioRecordTask to start recording */
     printf("Starting PDM recording...\r\n");
-    app_pdm_pcm_activate();
-    
-    /* Update state */
-    recording_active = true;
     xEventGroupSetBits(audio_state_events, EVENT_RECORDING);
+    
+    /* Update local state */
+    recording_active = true;
     
     printf("Recording started. Type 'stop' to finish.\r\n");
 }
@@ -81,25 +80,34 @@ static void handle_stop_record(void)
     
     printf("[DEBUG] Stopping recording...\r\n");
     
-    /* Deactivate PDM */
-    printf("Stopping PDM recording...\r\n");
-    app_pdm_pcm_deactivate();
-    
-    printf("[DEBUG] PDM deactivated\r\n");
-    
-    /* Update state */
-    recording_active = false;
+    /* Signal AudioRecordTask to stop (clear EVENT_RECORDING) */
     xEventGroupClearBits(audio_state_events, EVENT_RECORDING);
     
-    /* TODO: Trigger FileWriteTask to save recorded_data[] to SD card */
-    uint32_t sample_count = get_audio_data_index();
-    printf("Recording stopped. %d samples captured.\r\n", (int)sample_count);
-    printf("(File write task not yet implemented)\r\n");
+    /* Update local state */
+    recording_active = false;
+    
+    printf("[DEBUG] Stop signal sent to AudioRecordTask\r\n");
+    
+    /* Wait for recording completion (with timeout) */
+    EventBits_t bits = xEventGroupWaitBits(
+        audio_state_events,
+        EVENT_RECORDING_DONE,
+        pdTRUE,  /* Clear bit on exit */
+        pdFALSE,
+        pdMS_TO_TICKS(1000)  /* 1 second timeout */
+    );
+    
+    if (bits & EVENT_RECORDING_DONE) {
+        printf("Recording stopped successfully.\r\n");
+        printf("(Data sent to FileWriteTask)\r\n");
+    } else {
+        printf("WARNING: Recording stop timeout\r\n");
+    }
+    
+    printf("[DEBUG] Stop complete\r\n");
     
     /* Return to idle state */
     xEventGroupSetBits(audio_state_events, EVENT_IDLE);
-    
-    printf("[DEBUG] Stop complete\r\n");
 }
 
 /*******************************************************************************

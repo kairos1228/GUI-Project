@@ -365,3 +365,20 @@ uint32_t get_audio_data_index(void)
     }
     return (uint32_t)(audio_data_ptr - recorded_data);
 }
+
+/*******************************************************************************
+* Function Name: get_recorded_data_buffer
+********************************************************************************
+* Summary: Get pointer to recorded audio buffer
+*
+* Parameters:
+*  none
+*
+* Return :
+*  int16_t* - Pointer to recorded_data buffer
+*
+*******************************************************************************/
+int16_t* get_recorded_data_buffer(void)
+{
+    return recorded_data;
+}

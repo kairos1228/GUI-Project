@@ -8,6 +8,8 @@
 #include "freertos_setup.h"
 #include "cli_task.h"
 #include "audio_control_task.h"
+#include "audio_record_task.h"
+#include "file_write_task.h"
 // #include "playback_task.h"  /* Temporarily disabled */
 #include "app_pdm_pcm.h"
 #include "app_i2s.h"
@@ -19,6 +21,7 @@
 *******************************************************************************/
 EventGroupHandle_t audio_state_events = NULL;
 SemaphoreHandle_t buffer_free_sem = NULL;
+QueueHandle_t audio_record_queue = NULL;
 
 /*******************************************************************************
 * Function Name: freertos_create_ipc_objects
@@ -49,6 +52,13 @@ static int freertos_create_ipc_objects(void)
     buffer_free_sem = xSemaphoreCreateCounting(2, 2);  /* Max 2, initial 2 */
     if (buffer_free_sem == NULL) {
         printf("Error: Failed to create buffer free semaphore\r\n");
+        return -1;
+    }
+    
+    /* Create audio record queue (AudioRecordTask -> FileWriteTask) */
+    audio_record_queue = xQueueCreate(AUDIO_RECORD_QUEUE_LENGTH, sizeof(audio_record_msg_t));
+    if (audio_record_queue == NULL) {
+        printf("Error: Failed to create audio record queue\r\n");
         return -1;
     }
     
@@ -87,6 +97,22 @@ static int freertos_create_tasks(void)
     }
     printf("Audio Control Task created\r\n");
     
+    /* Create Audio Record Task (manages PDM recording) */
+    audio_record_task_create();
+    if (audio_record_task_handle == NULL) {
+        printf("Error: Audio Record task creation failed\r\n");
+        return -1;
+    }
+    printf("Audio Record Task created\r\n");
+    
+    /* Create File Write Task (saves recordings to SD card) */
+    file_write_task_create();
+    if (file_write_task_handle == NULL) {
+        printf("Error: File Write task creation failed\r\n");
+        return -1;
+    }
+    printf("File Write Task created\r\n");
+    
     /* Create Playback Task (handles WAV file playback) */
     /* Temporarily disabled - requires SD card driver */
     /*
@@ -97,9 +123,6 @@ static int freertos_create_tasks(void)
     }
     printf("Playback Task created\r\n");
     */
-    
-    /* Note: Audio Record Task and File Write Task will be created here */
-    /* when those modules are implemented */
     
     return 0;
 }
