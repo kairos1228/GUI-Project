@@ -7,6 +7,7 @@
 
 #include "freertos_setup.h"
 #include "cli_task.h"
+#include "audio_control_task.h"
 // #include "playback_task.h"  /* Temporarily disabled */
 #include "app_pdm_pcm.h"
 #include "app_i2s.h"
@@ -78,6 +79,14 @@ static int freertos_create_tasks(void)
     }
     printf("CLI Task created\r\n");
     
+    /* Create Audio Control Task (central coordinator) */
+    audio_control_task_create();
+    if (audio_control_task_handle == NULL) {
+        printf("Error: Audio Control task creation failed\r\n");
+        return -1;
+    }
+    printf("Audio Control Task created\r\n");
+    
     /* Create Playback Task (handles WAV file playback) */
     /* Temporarily disabled - requires SD card driver */
     /*
@@ -89,7 +98,7 @@ static int freertos_create_tasks(void)
     printf("Playback Task created\r\n");
     */
     
-    /* Note: Audio Control Task and File Write Task will be created here */
+    /* Note: Audio Record Task and File Write Task will be created here */
     /* when those modules are implemented */
     
     return 0;

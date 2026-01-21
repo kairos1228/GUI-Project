@@ -127,10 +127,11 @@ extern int16_t recorded_data[NUM_CHANNELS * BUFFER_SIZE];
 *******************************************************************************/
 void app_pdm_pcm_init(void);
 void app_pdm_pcm_activate(void);
+void app_pdm_pcm_deactivate(void);
 cy_en_pdm_pcm_gain_sel_t convert_db_to_pdm_scale(double db);
 void set_pdm_pcm_gain(cy_en_pdm_pcm_gain_sel_t gain);
 void pdm_interrupt_handler(void);
-void app_pdm_pcm_deactivate(void);
+uint32_t get_audio_data_index(void);
 
 
 #ifdef __cplusplus

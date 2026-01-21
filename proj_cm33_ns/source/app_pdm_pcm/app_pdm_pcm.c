@@ -106,7 +106,7 @@ void app_pdm_pcm_init(void)
 /*******************************************************************************
  * Function Name: app_pdm_pcm_activate
  ********************************************************************************
-* Summary: This function activates the left and righ channel.
+* Summary: This function activates the left and right channel.
 *
 * Parameters:
 *  None
@@ -117,6 +117,9 @@ void app_pdm_pcm_init(void)
 *******************************************************************************/
 void app_pdm_pcm_activate(void)
 {
+    /* Reset audio data pointer to beginning of buffer */
+    audio_data_ptr = recorded_data;
+    
     /* Activate recording from channel after init Activate Channel */
     Cy_PDM_PCM_Activate_Channel(PDM0, LEFT_CH_INDEX);
     Cy_PDM_PCM_Activate_Channel(PDM0, RIGHT_CH_INDEX);
@@ -328,7 +331,7 @@ void pdm_interrupt_handler(void)
 /*******************************************************************************
 * Function Name: app_pdm_pcm_deactivate
 ********************************************************************************
-* Summary: This function activates the left and righ channel.
+* Summary: This function deactivates the left and right channel.
 *
 * Parameters:
 *  none
@@ -341,4 +344,24 @@ void app_pdm_pcm_deactivate(void)
 {
     Cy_PDM_PCM_DeActivate_Channel(PDM0, LEFT_CH_INDEX);
     Cy_PDM_PCM_DeActivate_Channel(PDM0, RIGHT_CH_INDEX);
+}
+
+/*******************************************************************************
+* Function Name: get_audio_data_index
+********************************************************************************
+* Summary: Get current audio data pointer index (number of samples recorded)
+*
+* Parameters:
+*  none
+*
+* Return :
+*  uint32_t - Number of samples recorded
+*
+*******************************************************************************/
+uint32_t get_audio_data_index(void)
+{
+    if (audio_data_ptr == NULL) {
+        return 0;
+    }
+    return (uint32_t)(audio_data_ptr - recorded_data);
 }

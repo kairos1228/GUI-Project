@@ -57,6 +57,10 @@ static bool cli_parse_command(const char *cmd_str, audio_command_msg_t *msg)
         msg->cmd = CMD_START_RECORD;
         return true;
     }
+    else if (strcmp(cmd, "stop") == 0) {
+        msg->cmd = CMD_STOP_RECORD;
+        return true;
+    }
     else if (strcmp(cmd, "ls") == 0) {
         msg->cmd = CMD_LIST_FILES;
         return true;
@@ -89,6 +93,7 @@ static bool cli_parse_command(const char *cmd_str, audio_command_msg_t *msg)
         printf("Unknown command: %s\r\n", cmd);
         printf("Available commands:\r\n");
         printf("  record          - Start recording\r\n");
+        printf("  stop            - Stop recording\r\n");
         printf("  ls              - List files\r\n");
         printf("  play <filename> - Play WAV file\r\n");
         printf("  rm <filename>   - Delete file\r\n");

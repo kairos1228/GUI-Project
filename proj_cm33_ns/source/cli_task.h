@@ -31,6 +31,7 @@ extern "C" {
 *******************************************************************************/
 typedef enum {
     CMD_START_RECORD,
+    CMD_STOP_RECORD,
     CMD_LIST_FILES,
     CMD_PLAY_FILE,
     CMD_DELETE_FILE,
