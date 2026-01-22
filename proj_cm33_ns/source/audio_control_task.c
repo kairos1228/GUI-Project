@@ -9,6 +9,8 @@
 #include "app_pdm_pcm.h"
 #include "app_i2s.h"
 #include "freertos_setup.h"
+#include "file_read_task.h"
+#include "FS.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -21,7 +23,6 @@ TaskHandle_t audio_control_task_handle = NULL;
 * Local Variables
 *******************************************************************************/
 static bool recording_active = false;
-static char current_filename[32] = "audio_001.wav";
 
 /*******************************************************************************
 * Function Name: handle_start_record
@@ -125,13 +126,22 @@ static void handle_stop_record(void)
 *******************************************************************************/
 static void handle_list_files(void)
 {
-    printf("Listing files...\r\n");
+    printf("Listing recent WAV files:\r\n");
     
-    /* TODO: Implement SD card file listing with emFile */
-    printf("(SD card support not yet implemented)\r\n");
-    printf("Example files:\r\n");
-    printf("  audio_001.wav  (4 seconds, 16kHz stereo)\r\n");
-    printf("  audio_002.wav  (2 seconds, 16kHz stereo)\r\n");
+    /* Check for recently created files */
+    for (int i = 1; i <= 10; i++) {
+        char filename[32];
+        snprintf(filename, sizeof(filename), "audio_%03d.wav", i);
+        
+        FS_FILE *file = FS_FOpen(filename, "r");
+        if (file != NULL) {
+            U32 size = FS_GetFileSize(file);
+            FS_FClose(file);
+            printf("  %s  (%u bytes)\r\n", filename, (unsigned int)size);
+        }
+    }
+    
+    printf("(Use 'play <filename>' to play a file)\r\n");
 }
 
 /*******************************************************************************
@@ -149,16 +159,26 @@ static void handle_list_files(void)
 *******************************************************************************/
 static void handle_play_file(const char *filename)
 {
+    file_read_msg_t read_msg;
+    BaseType_t result;
+    
     printf("Playing file: %s\r\n", filename);
     
     /* Clear idle state */
     xEventGroupClearBits(audio_state_events, EVENT_IDLE);
     
-    /* TODO: Send play command to PlaybackTask */
-    printf("(Playback task not yet fully implemented)\r\n");
+    /* Send filename to FileReadTask */
+    strncpy(read_msg.filename, filename, sizeof(read_msg.filename) - 1);
+    read_msg.filename[sizeof(read_msg.filename) - 1] = '\0';
     
-    /* For now, just return to idle */
-    xEventGroupSetBits(audio_state_events, EVENT_IDLE);
+    result = xQueueSend(file_read_queue, &read_msg, pdMS_TO_TICKS(100));
+    if (result != pdPASS) {
+        printf("Error: Failed to send read command\r\n");
+        xEventGroupSetBits(audio_state_events, EVENT_IDLE);
+        return;
+    }
+    
+    printf("Read command sent to FileReadTask\r\n");
 }
 
 /*******************************************************************************
@@ -176,10 +196,18 @@ static void handle_play_file(const char *filename)
 *******************************************************************************/
 static void handle_delete_file(const char *filename)
 {
+    int result;
+    
     printf("Deleting file: %s\r\n", filename);
     
-    /* TODO: Implement file deletion with emFile FS_Remove() */
-    printf("(SD card support not yet implemented)\r\n");
+    /* Delete file from SD card */
+    result = FS_Remove(filename);
+    if (result == 0) {
+        printf("File deleted successfully\r\n");
+    } else {
+        printf("Error: Failed to delete file (error %d)\r\n", result);
+        printf("File may not exist or SD card is write-protected\r\n");
+    }
 }
 
 /*******************************************************************************
@@ -199,6 +227,7 @@ void audio_control_task(void *pvParameters)
 {
     (void)pvParameters;
     audio_command_msg_t cmd_msg;
+    EventBits_t event_bits;
     
     printf("\r\n=== Audio Control Task Started ===\r\n");
     
@@ -207,8 +236,8 @@ void audio_control_task(void *pvParameters)
     
     /* Main command processing loop */
     while (1) {
-        /* Wait for command from CLI (blocking) */
-        if (xQueueReceive(audio_cmd_queue, &cmd_msg, portMAX_DELAY) == pdPASS) {
+        /* Wait for command from CLI (with timeout to check auto-stop) */
+        if (xQueueReceive(audio_cmd_queue, &cmd_msg, pdMS_TO_TICKS(200)) == pdPASS) {
             
             /* Process command */
             switch (cmd_msg.cmd) {
@@ -235,6 +264,23 @@ void audio_control_task(void *pvParameters)
                 default:
                     printf("Unknown command received\r\n");
                     break;
+            }
+        }
+        
+        /* Check for auto-stop (buffer full during recording) */
+        if (recording_active) {
+            event_bits = xEventGroupGetBits(audio_state_events);
+            
+            /* If recording done but user didn't manually stop */
+            if (event_bits & EVENT_RECORDING_DONE) {
+                printf("[AutoStop] Recording finished (buffer full)\r\n");
+                
+                /* Update state */
+                recording_active = false;
+                
+                /* Clear done flag and return to idle */
+                xEventGroupClearBits(audio_state_events, EVENT_RECORDING_DONE);
+                xEventGroupSetBits(audio_state_events, EVENT_IDLE);
             }
         }
     }

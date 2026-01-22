@@ -12,6 +12,7 @@
 #include "freertos_setup.h"
 #include "audio_record_task.h"
 #include "wav_file.h"
+#include "FS.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -98,22 +99,35 @@ static void file_write_task(void *arg)
             printf("[FileWriteTask] WAV header generated (data_bytes=%u)\r\n",
                    (unsigned int)wav_header.data_bytes);
             
-            /* Save to SD card (or simulate if SD driver not available) */
-            #ifdef ENABLE_SD_CARD
-            int result = wav_file_save(filename, &wav_header, record_msg.buffer_ptr, record_msg.sample_count);
-            if (result == 0) {
-                printf("[FileWriteTask] ✓ File saved successfully: %s\r\n", filename);
-            } else {
-                printf("[FileWriteTask] ✗ File save failed: %d\r\n", result);
+            /* Save to SD card using emFile */
+            FS_FILE *file = FS_FOpen(filename, "w");
+            if (file == NULL) {
+                printf("[FileWriteTask] Error: Cannot create file '%s'\r\n", filename);
+                continue;
             }
-            #else
-            /* SD card not available - simulate write */
-            printf("[FileWriteTask] Simulating SD write (SD driver not enabled)...\r\n");
-            printf("[FileWriteTask] Would write %u bytes to '%s'\r\n",
-                   (unsigned int)(44 + wav_header.data_bytes),
-                   filename);
-            printf("[FileWriteTask] ✓ Simulation complete\r\n");
-            #endif
+            
+            /* Write WAV header */
+            uint32_t written = FS_Write(file, &wav_header, WAV_HEADER_SIZE);
+            if (written != WAV_HEADER_SIZE) {
+                printf("[FileWriteTask] Error: Header write failed\r\n");
+                FS_FClose(file);
+                continue;
+            }
+            
+            /* Write PCM data */
+            uint32_t data_bytes = record_msg.sample_count * sizeof(int16_t);
+            written = FS_Write(file, record_msg.buffer_ptr, data_bytes);
+            if (written != data_bytes) {
+                printf("[FileWriteTask] Error: Data write failed (%u/%u bytes)\r\n",
+                       (unsigned int)written, (unsigned int)data_bytes);
+                FS_FClose(file);
+                continue;
+            }
+            
+            FS_FClose(file);
+            
+            printf("[FileWriteTask] ✓ File saved: %s (%u bytes)\r\n",
+                   filename, (unsigned int)(WAV_HEADER_SIZE + data_bytes));
             
             /* Notify completion (could set event flag or send message) */
             printf("[FileWriteTask] Write operation complete, ready for next recording\r\n");

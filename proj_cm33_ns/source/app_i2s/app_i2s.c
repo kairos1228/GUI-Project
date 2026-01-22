@@ -39,6 +39,7 @@
 * Header Files
 *******************************************************************************/
 #include "app_i2s.h"
+#include "playback_task.h"
 
 /*******************************************************************************
 * Global Variables
@@ -180,21 +181,45 @@ void i2s_tx_interrupt_handler(void)
 
     if(CY_TDM_INTR_TX_FIFO_TRIGGER & intr)
     {
-
-        for(int i=0; i < HW_FIFO_HALF_SIZE/2; i++)
+        /* Check if playback is active */
+        if (playback_active && playback_buffer_ptr != NULL && playback_samples_remaining > 0)
         {
-            /* Write same data for L,R channels(dual mono) in FIFO */
-            Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 
-                                    (uint32_t) (audio_data_ptr[i2s_txcount++]));
-            Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 
-                                    (uint32_t) (audio_data_ptr[i2s_txcount++]));
+            /* Write playback data to I2S FIFO */
+            for(int i=0; i < HW_FIFO_HALF_SIZE/2; i++)
+            {
+                if (playback_samples_remaining > 0)
+                {
+                    /* Write stereo samples (L/R channels) */
+                    Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 
+                                            (uint32_t) (*playback_buffer_ptr++));
+                    Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 
+                                            (uint32_t) (*playback_buffer_ptr++));
+                    playback_samples_remaining -= 2;
+                }
+                else
+                {
+                    /* No more data - write zeros */
+                    Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 0);
+                    Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 0);
+                }
+            }
+            
+            /* Check if playback finished */
+            if (playback_samples_remaining == 0)
+            {
+                playback_active = false;
+                playback_buffer_ptr = NULL;
+                i2s_flag = true;  /* Signal playback complete */
+            }
         }
-        /* If the end of the wave data is reached, reset i2s_txcount
-        check and set end of playback */
-        if (i2s_txcount >= (recorded_data_size))
+        else
         {
-            i2s_txcount = 0;
-            i2s_flag = true;
+            /* No active playback - write zeros to prevent underflow */
+            for(int i=0; i < HW_FIFO_HALF_SIZE/2; i++)
+            {
+                Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 0);
+                Cy_AudioTDM_WriteTxData(TDM_STRUCT0_TX, 0);
+            }
         }
     }
     else if(CY_TDM_INTR_TX_FIFO_UNDERFLOW & intr)

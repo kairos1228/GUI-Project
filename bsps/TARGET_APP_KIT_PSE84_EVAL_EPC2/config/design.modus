@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration app="BACKEND" formatVersion="15" lastSavedWith="Configurator Backend" lastSavedWithVersion="3.60.0" toolsPackage="ModusToolbox 3.6.0" xmlns="http://cypress.com/xsd/cydesignfile_v6">
+<Configuration app="BACKEND" formatVersion="15" lastSavedWith="Configurator Backend" lastSavedWithVersion="3.70.0" toolsPackage="ModusToolbox 3.7.0" xmlns="http://cypress.com/xsd/cydesignfile_v7">
     <Devices>
         <Device mpn="PSE846GPS2DBZC4A">
             <BlockConfig>
@@ -2035,6 +2035,9 @@
                         <Param id="privileged1" value="false"/>
                         <Param id="privileged2" value="false"/>
                         <Param id="privileged3" value="false"/>
+                        <Param id="shareable1" value="false"/>
+                        <Param id="shareable2" value="false"/>
+                        <Param id="shareable3" value="false"/>
                         <Param id="size1" value="0x00003000"/>
                         <Param id="size2" value="0x00040000"/>
                         <Param id="size3" value="0x001C4000"/>
@@ -2091,14 +2094,6 @@
                         <Param id="action" value="2"/>
                         <Param id="conditionSrc" value="0"/>
                         <Param id="conditionSttInt" value="CY_AUTANALOG_STT_AC_CONDITION_BLOCK_READY"/>
-                        <Param id="dac0Channel" value="CY_AUTANALOG_DAC_CHAN_CFG15"/>
-                        <Param id="dac0Command" value="CY_AUTANALOG_DAC_DIRECTION_DISABLED"/>
-                        <Param id="dac0Enable" value="false"/>
-                        <Param id="dac0Trigger" value="false"/>
-                        <Param id="dac1Channel" value="CY_AUTANALOG_DAC_CHAN_CFG15"/>
-                        <Param id="dac1Command" value="CY_AUTANALOG_DAC_DIRECTION_DISABLED"/>
-                        <Param id="dac1Enable" value="false"/>
-                        <Param id="dac1Trigger" value="false"/>
                         <Param id="debug" value="false"/>
                         <Param id="prbOut0FirmwareControl" value="false"/>
                         <Param id="prbOut0Value" value="CY_AUTANALOG_PRB_TAP_0"/>
@@ -2122,14 +2117,6 @@
                         <Param id="action" value="2"/>
                         <Param id="conditionSar" value="CY_AUTANALOG_STT_AC_CONDITION_SAR_DONE"/>
                         <Param id="conditionSrc" value="2"/>
-                        <Param id="dac0Channel" value="CY_AUTANALOG_DAC_CHAN_CFG15"/>
-                        <Param id="dac0Command" value="CY_AUTANALOG_DAC_DIRECTION_DISABLED"/>
-                        <Param id="dac0Enable" value="false"/>
-                        <Param id="dac0Trigger" value="false"/>
-                        <Param id="dac1Channel" value="CY_AUTANALOG_DAC_CHAN_CFG15"/>
-                        <Param id="dac1Command" value="CY_AUTANALOG_DAC_DIRECTION_DISABLED"/>
-                        <Param id="dac1Enable" value="false"/>
-                        <Param id="dac1Trigger" value="false"/>
                         <Param id="debug" value="false"/>
                         <Param id="prbOut0FirmwareControl" value="false"/>
                         <Param id="prbOut0Value" value="CY_AUTANALOG_PRB_TAP_0"/>
@@ -2153,14 +2140,6 @@
                     <Parameters>
                         <Param id="action" value="0"/>
                         <Param id="conditionSrc" value="0"/>
-                        <Param id="dac0Channel" value="CY_AUTANALOG_DAC_CHAN_CFG15"/>
-                        <Param id="dac0Command" value="CY_AUTANALOG_DAC_DIRECTION_DISABLED"/>
-                        <Param id="dac0Enable" value="false"/>
-                        <Param id="dac0Trigger" value="false"/>
-                        <Param id="dac1Channel" value="CY_AUTANALOG_DAC_CHAN_CFG15"/>
-                        <Param id="dac1Command" value="CY_AUTANALOG_DAC_DIRECTION_DISABLED"/>
-                        <Param id="dac1Enable" value="false"/>
-                        <Param id="dac1Trigger" value="false"/>
                         <Param id="debug" value="false"/>
                         <Param id="prbOut0FirmwareControl" value="false"/>
                         <Param id="prbOut0Value" value="CY_AUTANALOG_PRB_TAP_0"/>
@@ -2391,7 +2370,12 @@
                         <Param id="is_receiver_3_used" value="true"/>
                         <Param id="is_receiver_4_used" value="false"/>
                         <Param id="is_receiver_5_used" value="false"/>
-                        <Param id="routeCtl" value="4"/>
+                        <Param id="routeCtl_0_1_int1" value="0"/>
+                        <Param id="routeCtl_0_1_int2" value="1"/>
+                        <Param id="routeCtl_2_3_int1" value="0"/>
+                        <Param id="routeCtl_2_3_int2" value="4"/>
+                        <Param id="routeCtl_4_5_int1" value="0"/>
+                        <Param id="routeCtl_4_5_int2" value="16"/>
                         <Param id="rxDmaTrigger" value="false"/>
                         <Param id="rxFifoTriggerLevel_0" value="10"/>
                         <Param id="rxFifoTriggerLevel_1" value="10"/>
@@ -2436,7 +2420,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="7"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2448,7 +2431,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="10"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2460,7 +2442,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="1"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2472,7 +2453,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="250"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2484,7 +2464,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="10"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2496,7 +2475,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="87"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2508,7 +2486,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="10000"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2520,7 +2497,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="50000"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2580,7 +2556,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="8"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2589,11 +2564,9 @@
                     <Block location="peri[0].mmio[0]" locked="true"/>
                     <Parameters>
                         <Param id="divider2" value="2"/>
-                        <Param id="dividerEnabled0" value="false"/>
                         <Param id="dividerEnabled1" value="false"/>
                         <Param id="dividerEnabled2" value="true"/>
                         <Param id="dividerEnabled3" value="false"/>
-                        <Param id="dividerEnabled4" value="false"/>
                         <Param id="dividerEnabled5" value="false"/>
                     </Parameters>
                 </Personality>
@@ -2628,7 +2601,6 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
                         <Param id="intDivider" value="2"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
@@ -2640,8 +2612,7 @@
                         </Aliases>
                     </Block>
                     <Parameters>
-                        <Param id="fracDivider" value="0"/>
-                        <Param id="intDivider" value="2"/>
+                        <Param id="intDivider" value="4"/>
                         <Param id="startOnReset" value="true"/>
                     </Parameters>
                 </Personality>
@@ -2650,11 +2621,8 @@
                     <Parameters>
                         <Param id="divider1" value="2"/>
                         <Param id="divider3" value="4"/>
-                        <Param id="dividerEnabled0" value="false"/>
                         <Param id="dividerEnabled1" value="true"/>
-                        <Param id="dividerEnabled2" value="false"/>
                         <Param id="dividerEnabled3" value="true"/>
-                        <Param id="dividerEnabled4" value="false"/>
                     </Parameters>
                 </Personality>
                 <Personality template="i2c" version="4.0" instance="Z-0WSjZHSXQ">
@@ -3079,9 +3047,7 @@
                     <Block location="srss[0].clock[0].lfclk[0]" locked="true"/>
                     <Parameters>
                         <Param id="ClkLfCsv" value="false"/>
-                        <Param id="accuracyCsv" value="99"/>
                         <Param id="sourceClock" value="pilo"/>
-                        <Param id="sourceClockCsv" value="IMO"/>
                     </Parameters>
                 </Personality>
                 <Personality template="pathmux" version="3.0" instance="02SXcT-qcc4">
@@ -3151,11 +3117,7 @@
                     <Block location="srss[0].clock[0].wco[0]" locked="true"/>
                     <Parameters>
                         <Param id="accuracyPpm" value="150"/>
-                        <Param id="clockLostDetection" value="false"/>
                         <Param id="clockPort" value="CY_SYSCLK_WCO_NOT_BYPASSED"/>
-                        <Param id="clockSupervisor" value="CY_SYSCLK_WCO_CSV_SUPERVISOR_ILO"/>
-                        <Param id="lossAction" value="CY_SYSCLK_CSV_ERROR_FAULT"/>
-                        <Param id="lossWindow" value="CY_SYSCLK_CSV_LOSS_4_CYCLES"/>
                     </Parameters>
                 </Personality>
                 <Personality template="mcwdt" version="3.0" instance="mvym-rkCo3g">
@@ -3523,6 +3485,7 @@
                     <Parameters>
                         <Param id="mode" value="Device"/>
                         <Param id="timerEnable" value="true"/>
+                        <Param id="usbCounter#inFlash" value="false"/>
                         <Param id="usbCounter#usbCounter" value="AUTOPLACEDtcpwm[0].group[0].cnt[1]"/>
                     </Parameters>
                     <Personality template="usbCounter" instance="jZetNzFzV3U">
@@ -3531,9 +3494,6 @@
                                 <Alias value="CYBSP_USB_OS_TIMER_COUNTER"/>
                             </Aliases>
                         </Block>
-                        <Parameters>
-                            <Param id="inFlash" value="false"/>
-                        </Parameters>
                     </Personality>
                 </Personality>
                 <Personality template="memory" version="2.0" instance="6N2tM2roWpA">
@@ -3893,12 +3853,10 @@
                 <Personality template="protection_mpc" version="1.0" instance="VVG3pZNy_Zc">
                     <Block location="vres[0].protection[0].mpc[0]" locked="true"/>
                     <Parameters>
-                        <Param id="response0" value="CY_MPC_BUS_ERR"/>
                         <Param id="response1" value="CY_MPC_BUS_ERR"/>
                         <Param id="response2" value="CY_MPC_BUS_ERR"/>
                         <Param id="response3" value="CY_MPC_BUS_ERR"/>
                         <Param id="response4" value="CY_MPC_BUS_ERR"/>
-                        <Param id="response5" value="CY_MPC_BUS_ERR"/>
                     </Parameters>
                 </Personality>
             </BlockConfig>

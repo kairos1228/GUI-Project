@@ -53,7 +53,8 @@ VERBOSE=
 # ... then code in directories named COMPONENT_foo and COMPONENT_bar will be
 # added to the build
 #
-COMPONENTS+=FREERTOS EMFILE
+COMPONENTS+=FREERTOS EMFILE EMFILE_FAT32 RTOS_AWARE
+# Note: Add SDHC driver via Library Manager GUI
 
 # Like COMPONENTS, but disable optional code that was enabled by default.
 DISABLE_COMPONENTS=

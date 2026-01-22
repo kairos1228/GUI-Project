@@ -10,10 +10,12 @@
 #include "audio_control_task.h"
 #include "audio_record_task.h"
 #include "file_write_task.h"
-// #include "playback_task.h"  /* Temporarily disabled */
+#include "file_read_task.h"
+#include "playback_task.h"
 #include "app_pdm_pcm.h"
 #include "app_i2s.h"
 #include "retarget_io_init.h"
+#include "sd_card_init.h"
 #include <stdio.h>
 
 /*******************************************************************************
@@ -59,6 +61,20 @@ static int freertos_create_ipc_objects(void)
     audio_record_queue = xQueueCreate(AUDIO_RECORD_QUEUE_LENGTH, sizeof(audio_record_msg_t));
     if (audio_record_queue == NULL) {
         printf("Error: Failed to create audio record queue\r\n");
+        return -1;
+    }
+    
+    /* Create file read queue (AudioControlTask -> FileReadTask) */
+    file_read_queue = xQueueCreate(2, sizeof(file_read_msg_t));
+    if (file_read_queue == NULL) {
+        printf("Error: Failed to create file read queue\r\n");
+        return -1;
+    }
+    
+    /* Create PCM playback queue (FileReadTask -> PlaybackTask) */
+    pcm_playback_queue = xQueueCreate(4, sizeof(pcm_playback_msg_t));
+    if (pcm_playback_queue == NULL) {
+        printf("Error: Failed to create PCM playback queue\r\n");
         return -1;
     }
     
@@ -113,16 +129,21 @@ static int freertos_create_tasks(void)
     }
     printf("File Write Task created\r\n");
     
-    /* Create Playback Task (handles WAV file playback) */
-    /* Temporarily disabled - requires SD card driver */
-    /*
+    /* Create File Read Task (reads WAV from SD and sends to Playback) */
+    file_read_task_create();
+    if (file_read_task_handle == NULL) {
+        printf("Error: File Read task creation failed\r\n");
+        return -1;
+    }
+    printf("File Read Task created\r\n");
+    
+    /* Create Playback Task (handles PCM to I2S streaming) */
     playback_task_create();
     if (playback_task_handle == NULL) {
         printf("Error: Playback task creation failed\r\n");
         return -1;
     }
     printf("Playback Task created\r\n");
-    */
     
     return 0;
 }
@@ -160,7 +181,13 @@ void freertos_system_init(void)
     app_pdm_pcm_init();
     printf("Audio hardware initialized\r\n");
     
-    /* Step 2.5: Initialize UART RX interrupt for CLI input */
+    /* Step 2.5: Initialize SD card */
+    // if (sd_card_init() != 0) {
+    //     printf("WARNING: SD card initialization failed\r\n");
+    //     printf("File operations will not work\r\n");
+    // }
+    
+    /* Step 2.6: Initialize UART RX interrupt for CLI input */
     uart_rx_interrupt_init();
     
     /* Step 3: Create all application tasks */
