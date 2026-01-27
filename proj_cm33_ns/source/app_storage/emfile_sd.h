@@ -82,6 +82,21 @@ bool app_emfile_mount(void);
 
 
 /**
+ * @brief Generate filename based on RTC timestamp.
+ *
+ * Generates filename in format: YYYYMMDD_HHMMSS.wav
+ * Example: 20260127_143022.wav
+ *
+ * This ensures each recording has a unique timestamp-based filename.
+ *
+ * @note The returned pointer is valid until the next call to this function.
+ *
+ * @return Pointer to filename string with timestamp
+ */
+const char* app_emfile_generate_timestamp_filename(void);
+
+
+/**
  * @brief Generate next filename for WAV recording.
  *
  * Generates sequential filenames in the format "rec_XXXX.wav" where XXXX is

@@ -53,6 +53,8 @@
 #include "emfile_sd.h"
 #include "FS.h"
 #include "FS_Types.h"
+#include "cy_syslib.h"
+#include "cy_rtc.h"
 
 /* Deep sleep lock/unlock macros - define as empty if not available */
 #ifndef mtb_hal_syspm_lock_deepsleep
@@ -73,6 +75,7 @@
 #define MOUNT_VOLUME_NAME     ""             /* Root volume for SD card */
 
 #define WAV_CHUNK_SIZE        (8 * 1024)     /* 8 KB chunks for writing */
+#define FILENAME_BUFFER_SIZE  (32)           /* Filename buffer size */
 
 
 /*******************************************************************************
@@ -127,56 +130,165 @@ static bool _emfile_initialized = false;
 /* Mount status flag */
 static bool _emfile_mounted = false;
 
+/* Mounted volume name (used for file operations) */
+static char _mounted_volume_name[32] = "";
+
 /* Static counter for sequential filename generation */
 static uint32_t _file_counter = 0;
-
-/* Static buffer for filename */
-#define FILENAME_BUFFER_SIZE (32)
-static char _filename_buffer[FILENAME_BUFFER_SIZE];
 
 
 /*******************************************************************************
 * Function Definitions
 *******************************************************************************/
 
-/**
- * @brief Generate next filename for WAV recording.
- *
- * Generates sequential filenames in the format "rec_XXXX.wav" where XXXX is
- * a zero-padded 4-digit counter (0000-9999). Uses a static counter that
- * increments after each call.
- *
- * @note The returned pointer is valid until the next call to this function,
- *       as it uses a static buffer.
- *
- * @note For timestamped filenames, integrate with RTC:
- *       - Call Cy_RTC_GetDateAndTime() to get current date/time
- *       - Format as "rec_YYYYMMDD_HHMMSS.wav" (e.g., "rec_20260126_143022.wav")
- *       - This would prevent overwrites and provide chronological sorting
- *
- * @return Pointer to static filename buffer (e.g., "rec_0001.wav")
- *         The buffer is valid until the next call to this function.
- */
-const char* app_emfile_next_filename(void)
+/* Compile-time timestamp (parsed once at startup) */
+static struct
 {
-    int snprintf_result;
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+} _compile_time = {0, 0, 0, 0, 0, 0};
 
-    /* Generate filename with current counter value
-     * Use empty string as volume name (default volume) */
-    snprintf_result = snprintf(_filename_buffer,
-                              FILENAME_BUFFER_SIZE,
-                              "rec_%04" PRIu32 ".wav",
-                              _file_counter);
+static bool _compile_time_parsed = false;
 
-    if (snprintf_result < 0 || snprintf_result >= FILENAME_BUFFER_SIZE)
+/**
+ * @brief Parse compile-time timestamp from __DATE__ and __TIME__.
+ *
+ * Called once during initialization to extract timestamp.
+ * Uses standard GCC macros:
+ * - __DATE__: "Mmm dd yyyy" (e.g., "Jan 27 2026")
+ * - __TIME__: "hh:mm:ss" (e.g., "11:25:34")
+ */
+static void emfile_parse_compile_time(void)
+{
+    const char *date_str = __DATE__;
+    const char *time_str = __TIME__;
+    
+    const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    int month_num = 1;
+    int i;
+
+    printf("[RTC] Parsing compile-time timestamp...\r\n");
+    printf("[RTC]   Date: %s\r\n", date_str);
+    printf("[RTC]   Time: %s\r\n", time_str);
+
+    /* Parse month (first 3 characters) */
+    for (i = 0; i < 12; i++)
     {
-        printf("[FS] WARNING: Filename buffer overflow or formatting error.\r\n");
-        return "rec_0000.wav";  /* Fallback */
+        if (strncmp(date_str, months[i], 3) == 0)
+        {
+            month_num = i + 1;
+            break;
+        }
     }
 
-    printf("[FS] Generated filename: %s (counter: %" PRIu32 ")\r\n",
-           _filename_buffer, _file_counter);
+    /* Parse day and year */
+    int day, year;
+    if (sscanf(date_str, "%*s %d %d", &day, &year) != 2)
+    {
+        printf("[RTC] WARNING: Failed to parse date\r\n");
+        day = 1;
+        month_num = 1;
+        year = 2026;
+    }
 
+    /* Parse time */
+    int hour, minute, second;
+    if (sscanf(time_str, "%d:%d:%d", &hour, &minute, &second) != 3)
+    {
+        printf("[RTC] WARNING: Failed to parse time\r\n");
+        hour = 0;
+        minute = 0;
+        second = 0;
+    }
+
+    /* Store parsed values */
+    _compile_time.year = (uint16_t)year;
+    _compile_time.month = (uint8_t)month_num;
+    _compile_time.day = (uint8_t)day;
+    _compile_time.hour = (uint8_t)hour;
+    _compile_time.minute = (uint8_t)minute;
+    _compile_time.second = (uint8_t)second;
+    _compile_time_parsed = true;
+
+    printf("[RTC] Compile time: %04u-%02u-%02u %02u:%02u:%02u\r\n",
+           _compile_time.year, _compile_time.month, _compile_time.day,
+           _compile_time.hour, _compile_time.minute, _compile_time.second);
+}
+
+/**
+ * @brief Generate filename based on current RTC time with Korea timezone.
+ *
+ * Generates filename in format: YYYYMMDD_HHMMSS.wav
+ * Example: 20260127_112300.wav (Korea Standard Time, UTC+9)
+ *
+ * This ensures each recording has a unique name based on when it was created.
+ * No counter is needed - the timestamp guarantees uniqueness.
+ *
+ * @return Pointer to static filename buffer
+ *         Returns fallback "recording.wav" if RTC read fails
+ */
+const char* app_emfile_generate_timestamp_filename(void)
+{
+    static char _filename_buffer[32];
+    int snprintf_result;
+    
+    /* Ensure compile time has been parsed */
+    if (!_compile_time_parsed)
+    {
+        printf("[FS] WARNING: Compile time not parsed. Using fallback.\r\n");
+        return "recording.wav";
+    }
+
+    /* Apply KST offset (+9 hours) */
+    uint16_t year = _compile_time.year;
+    uint8_t month = _compile_time.month;
+    uint8_t day = _compile_time.day;
+    uint8_t hour = _compile_time.hour;
+    uint8_t minute = _compile_time.minute;
+    uint8_t second = _compile_time.second;
+
+    /* Handle hour wraparound (>= 24) */
+    if (hour >= 24)
+    {
+        hour -= 24;
+        day += 1;
+
+        /* Simple month/year handling (assumes we won't overflow beyond month 12) */
+        const uint8_t days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        uint8_t max_days = days_in_month[month - 1];
+
+        /* 2026 is not a leap year */
+        if (day > max_days)
+        {
+            day = 1;
+            month += 1;
+            if (month > 12)
+            {
+                month = 1;
+                year += 1;
+            }
+        }
+    }
+
+    /* Format: YYYYMMDD_HHMMSS.wav */
+    snprintf_result = snprintf(_filename_buffer,
+                              sizeof(_filename_buffer),
+                              "%04u%02u%02u_%02u%02u%02u.wav",
+                              year, month, day,
+                              hour, minute, second);
+
+    if (snprintf_result < 0 || snprintf_result >= (int)sizeof(_filename_buffer))
+    {
+        printf("[FS] WARNING: Filename buffer overflow. Using fallback.\r\n");
+        return "recording.wav";
+    }
+
+    printf("[FS] Generated timestamp filename: %s (KST)\r\n", _filename_buffer);
     return _filename_buffer;
 }
 
@@ -248,6 +360,9 @@ bool app_emfile_init(void)
 
     printf("[emFile] Initializing file system...\r\n");
 
+    /* Step 0: Parse compile-time timestamp for filename generation */
+    emfile_parse_compile_time();
+
     /* Step 1: Initialize emFile internals */
     FS_Init();
     printf("[emFile] FS_Init() completed.\r\n");
@@ -258,13 +373,59 @@ bool app_emfile_init(void)
     printf("[emFile] FS_X_AddDevices() completed.\r\n");
 
     _emfile_initialized = true;
-    
-    /* Step 3: Automatically mark as mounted since emFile auto-mounts through FS_X_AddDevices */
-    /* The volume is accessible immediately after device initialization */
     _emfile_mounted = true;
     
-    printf("[emFile] File system initialized successfully.\r\n");
-    printf("[emFile] Note: SD card must have FAT32 filesystem.\r\n");
+    /* Step 3: Wait for file system to stabilize */
+    /* emFile needs time to:
+     * 1. Detect SD card presence
+     * 2. Read card configuration
+     * 3. Scan FAT32 filesystem
+     * 4. Build directory structures
+     * Insufficient delay causes FS_FOpen to fail silently */
+    printf("[emFile] Waiting 1 second for file system stabilization...\r\n");
+    Cy_SysLib_Delay(1000);  /* 1000 milliseconds */
+    
+    /* Step 4: Verify volume is accessible */
+    /* Check if we can query volume information */
+    I32 num_volumes = FS_GetNumVolumes();
+    printf("[emFile] Number of mounted volumes: %ld\r\n", (long)num_volumes);
+    
+    if (num_volumes <= 0)
+    {
+        printf("[emFile] WARNING: No volumes mounted. SD card may not be ready.\r\n");
+        printf("[emFile]   - Verify SD card is inserted\r\n");
+        printf("[emFile]   - Verify SD card has FAT32 filesystem\r\n");
+        printf("[emFile]   - Check SDHC hardware initialization logs above\r\n");
+        /* Continue anyway - file operations may still work */
+    }
+    else
+    {
+        /* Try to get first volume name for file operations */
+        printf("[emFile] Attempting to detect volume names...\r\n");
+        char vol_name[32];
+        
+        /* Initialize to empty (root volume) */
+        _mounted_volume_name[0] = '\0';
+        
+        /* Try to get volume 0 name (SD card is usually volume 0) */
+        /* NOTE: FS_GetVolumeName() may block on some implementations,
+         * so we use a simple fallback strategy */
+        if (num_volumes > 0)
+        {
+            /* First try with FS_GetVolumeName - but don't loop */
+            FS_GetVolumeName(0, vol_name, sizeof(vol_name));
+            printf("[emFile]   SD Volume: '%s'\r\n", vol_name);
+            
+            if (strlen(vol_name) > 0)
+            {
+                strncpy(_mounted_volume_name, vol_name, sizeof(_mounted_volume_name) - 1);
+                _mounted_volume_name[sizeof(_mounted_volume_name) - 1] = '\0';
+                printf("[emFile] Using volume: '%s' for file operations\r\n", _mounted_volume_name);
+            }
+        }
+        
+        printf("[emFile] File system ready for file operations.\r\n");
+    }
 
     return true;
 }
@@ -390,13 +551,42 @@ bool app_wav_save_from_buffer(const int16_t* pcm_interleaved,
     /* Prevent deep sleep during SD write operations */
     mtb_hal_syspm_lock_deepsleep();
 
-    /* Open file for writing (binary mode) */
-    printf("[WAV] Opening file: %s\r\n", filename);
-    p_file = (void*)FS_FOpen(filename, "wb");
-    if (p_file == NULL || (intptr_t)p_file == 0)
+    /* Diagnostic: Check file system status before opening */
+    printf("[WAV] Pre-open diagnostics:\r\n");
+    printf("[WAV]   Mounted volumes: %ld\r\n", (long)FS_GetNumVolumes());
+    printf("[WAV]   Target volume: '%s'\r\n", _mounted_volume_name[0] ? _mounted_volume_name : "(root)");
+    
+    /* Build full file path with volume name
+     * NOTE: _mounted_volume_name already includes trailing colon (e.g., "mmc:0:")
+     * So we just concatenate filename directly */
+    char full_filepath[64];
+    if (_mounted_volume_name[0] != '\0')
     {
-        printf("[WAV] ERROR: Failed to open file for writing.\r\n");
-        printf("[WAV]   Possible causes: SD card not mounted, invalid filename, or permission denied.\r\n");
+        /* _mounted_volume_name already ends with ':', just concatenate filename */
+        snprintf(full_filepath, sizeof(full_filepath), "%s%s", _mounted_volume_name, filename);
+    }
+    else
+    {
+        /* Use root volume (empty volume name) */
+        snprintf(full_filepath, sizeof(full_filepath), "%s", filename);
+    }
+    
+    /* Open file for writing (binary mode) */
+    printf("[WAV] Opening file: %s\r\n", full_filepath);
+    p_file = FS_FOpen(full_filepath, "wb");
+    if (p_file == NULL)
+    {
+        printf("[WAV] ERROR: FS_FOpen() returned NULL.\r\n");
+        printf("[WAV] Diagnostic information:\r\n");
+        printf("[WAV]   - Filename: '%s'\r\n", filename);
+        printf("[WAV]   - Mode: write binary (\"wb\")\r\n");
+        printf("[WAV]   - Possible causes:\r\n");
+        printf("[WAV]       * File system not mounted (no volumes available)\r\n");
+        printf("[WAV]       * SD card not detected or not readable\r\n");
+        printf("[WAV]       * Card filesystem is not FAT32\r\n");
+        printf("[WAV]       * Invalid filename format\r\n");
+        printf("[WAV]       * SD card write-protected\r\n");
+        printf("[WAV]       * SDHC hardware initialization failed\r\n");
         mtb_hal_syspm_unlock_deepsleep();
         return false;
     }

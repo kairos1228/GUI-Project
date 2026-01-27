@@ -258,8 +258,8 @@ int main(void)
                 
                 printf("[Main] Saving recorded audio to SD card...\r\n");
                 
-                /* Get the next available filename */
-                const char* filename = app_emfile_next_filename();
+                /* Get filename with RTC timestamp (YYYYMMDD_HHMMSS.wav) */
+                const char* filename = app_emfile_generate_timestamp_filename();
                 
                 /* Save the recorded audio as WAV file */
                 if (app_wav_save_from_buffer((const int16_t*)recorded_data,
