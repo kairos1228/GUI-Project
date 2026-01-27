@@ -71,6 +71,8 @@ Purpose     : Configuration functions for FS with MMC/SD card mode driver
 */
 static U32 _aMemBlock[ALLOC_SIZE / 4];        // Memory pool used for semi-dynamic allocation.
 static mtb_hal_sdhc_t sdhcObj;
+static cy_stc_sd_host_context_t sdhc_host_context;  // Must be static to persist across function calls
+static bool _sdhc_hw_initialized = false;     // Flag to prevent duplicate initialization
 
 static FS_MMC_HW_CM_SDHostConfig_t SDConfig =
 {
@@ -138,7 +140,14 @@ void FS_MMC_HW_CM_ConfigureHw(mtb_hal_sdhc_t *sdhcObj)
     cy_rslt_t hal_status;
     cy_en_sd_host_status_t pdl_sdhc_status;
     cy_en_sysint_status_t  pdl_sysint_status;
-    cy_stc_sd_host_context_t sdhc_host_context;
+    /* Note: sdhc_host_context is now static to persist across function calls */
+
+    /* Prevent duplicate initialization */
+    if (_sdhc_hw_initialized)
+    {
+        printf("[SDHC] Already initialized, skipping re-initialization.\r\n");
+        return;
+    }
 
     /* Step 1: Enable SDHC peripheral */
     Cy_SD_Host_Enable(CYBSP_SDHC_1_HW);
@@ -190,6 +199,9 @@ void FS_MMC_HW_CM_ConfigureHw(mtb_hal_sdhc_t *sdhcObj)
 
     /* Enable NVIC interrupt */
     NVIC_EnableIRQ((IRQn_Type) sdhc_isr_config.intrSrc);
+
+    /* Mark as initialized to prevent duplicate initialization */
+    _sdhc_hw_initialized = true;
 
     printf("[SDHC] Hardware initialization completed successfully.\r\n");
 }

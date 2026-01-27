@@ -161,7 +161,8 @@ const char* app_emfile_next_filename(void)
 {
     int snprintf_result;
 
-    /* Generate filename with current counter value */
+    /* Generate filename with current counter value
+     * Use empty string as volume name (default volume) */
     snprintf_result = snprintf(_filename_buffer,
                               FILENAME_BUFFER_SIZE,
                               "rec_%04" PRIu32 ".wav",
@@ -390,11 +391,12 @@ bool app_wav_save_from_buffer(const int16_t* pcm_interleaved,
     mtb_hal_syspm_lock_deepsleep();
 
     /* Open file for writing (binary mode) */
-    printf("[WAV] Opening file...\r\n");
+    printf("[WAV] Opening file: %s\r\n", filename);
     p_file = (void*)FS_FOpen(filename, "wb");
     if (p_file == NULL || (intptr_t)p_file == 0)
     {
         printf("[WAV] ERROR: Failed to open file for writing.\r\n");
+        printf("[WAV]   Possible causes: SD card not mounted, invalid filename, or permission denied.\r\n");
         mtb_hal_syspm_unlock_deepsleep();
         return false;
     }
@@ -402,10 +404,15 @@ bool app_wav_save_from_buffer(const int16_t* pcm_interleaved,
     /* Write WAV header (44 bytes) */
     printf("[WAV] Writing header (44 bytes)...\r\n");
     write_result = FS_FWrite((void*)&wav_header, 1, sizeof(wav_header), p_file);
-    if (write_result != sizeof(wav_header))
+    
+    /* FS_FWrite returns number of items written, not bytes.
+     * Since ItemSize=1 and NumItems=sizeof(wav_header), 
+     * we expect return value = sizeof(wav_header) */
+    if (write_result != (int)sizeof(wav_header))
     {
-        printf("[WAV] ERROR: Failed to write WAV header (wrote %d bytes, expected %zu).\r\n",
-               write_result, sizeof(wav_header));
+        printf("[WAV] ERROR: Failed to write WAV header.\r\n");
+        printf("[WAV]   Expected to write: %zu bytes\r\n", sizeof(wav_header));
+        printf("[WAV]   Actually wrote: %d bytes\r\n", write_result);
         FS_FClose(p_file);
         mtb_hal_syspm_unlock_deepsleep();
         return false;
@@ -424,17 +431,21 @@ bool app_wav_save_from_buffer(const int16_t* pcm_interleaved,
                          : remaining_samples;
         bytes_to_write = samples_to_write * bytes_per_sample;
 
-        /* Write chunk of PCM data */
+        /* Write chunk of PCM data 
+         * FS_FWrite(pData, ItemSize, NumItems, pFile)
+         * We use ItemSize=1, NumItems=bytes_to_write
+         * Return value = number of items (bytes) written */
         write_result = FS_FWrite(
             (void*)(pcm_interleaved + (total_samples - remaining_samples)),
             1,
             bytes_to_write,
             p_file);
 
-        if (write_result != bytes_to_write)
+        if (write_result != (int)bytes_to_write)
         {
-            printf("[WAV] ERROR: Failed to write audio chunk (wrote %d bytes, expected %" PRIu32 ").\r\n",
-                   write_result, bytes_to_write);
+            printf("[WAV] ERROR: Failed to write audio chunk.\r\n");
+            printf("[WAV]   Expected to write: %" PRIu32 " bytes\r\n", bytes_to_write);
+            printf("[WAV]   Actually wrote: %d bytes\r\n", write_result);
             FS_FClose(p_file);
             mtb_hal_syspm_unlock_deepsleep();
             return false;
@@ -460,7 +471,7 @@ bool app_wav_save_from_buffer(const int16_t* pcm_interleaved,
     write_result = FS_FClose(p_file);
     if (write_result != 0)
     {
-        printf("[WAV] ERROR: Failed to close file (error code %d).\r\n", write_result);
+        printf("[WAV] ERROR: Failed to close file (error code: %d).\r\n", write_result);
         mtb_hal_syspm_unlock_deepsleep();
         return false;
     }
